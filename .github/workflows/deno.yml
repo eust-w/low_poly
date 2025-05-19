@@ -1,0 +1,47 @@
+name: Deploy to Blog
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          path: comics_pic
+          
+      - name: Setup Git
+        run: |
+          git config --global init.defaultBranch master
+          git config --global http.postBuffer 524288000
+          git config --global user.name "eust-w"
+          git config --global user.email "eustancewu@gmail.com"
+      
+      - name: Clone blog repository
+        run: |
+          git clone "https://eust-w:${{ secrets.SELF }}@github.com/eust-w/hexoBlog.git" hexoBlog
+      
+      - name: Create or recreate lowpoly directory
+        run: |
+          if [ -d "hexoBlog/source/os/lowpoly" ]; then
+            rm -rf hexoBlog/source/os/lowpoly
+          fi
+          mkdir -p hexoBlog/source/os/lowpoly
+      
+      - name: Copy project files to blog
+        run: |
+          # 复制所有 .js 和 .html 文件，排除 .md 和 LICENSE 文件
+          find comics_pic -type f \( -name "*.js" -o -name "*.html" \) | while read file; do
+            cp "$file" hexoBlog/source/os/lowpoly/
+          done
+      
+      - name: Commit and push changes
+        working-directory: hexoBlog
+        run: |
+          git add --all
+          git commit -m ":memo: ${{ github.event.head_commit.message }} change lowpoly project" || echo "No changes to commit"
+          git push
